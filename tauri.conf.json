@@ -1,0 +1,111 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "MADGOD",
+  "version": "0.1.0",
+  "identifier": "dev.numbpill3d.madgod",
+
+  "app": {
+    "withGlobalTauri": true,
+    "windows": [
+      {
+        "title": "MADGOD",
+        "width": 1600,
+        "height": 1000,
+        "minWidth": 900,
+        "minHeight": 600,
+        "resizable": true,
+        "decorations": false,
+        "transparent": false,
+        "center": true,
+        "url": "index.html",
+        "label": "main"
+      }
+    ],
+    "security": {
+      "csp": null
+    },
+    "trayIcon": {
+      "iconPath": "icons/icon.png",
+      "iconAsTemplate": true,
+      "menuOnLeftClick": false,
+      "title": "MADGOD"
+    }
+  },
+
+  "build": {
+    "beforeDevCommand": "",
+    "beforeBuildCommand": "",
+    "frontendDist": "../"
+  },
+
+  "bundle": {
+    "active": true,
+    "targets": "all",
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ],
+    "resources": {
+      "binaries/madgod-sidecar*": "binaries/"
+    },
+    "externalBin": [
+      "binaries/madgod-sidecar"
+    ],
+    "linux": {
+      "deb": {
+        "depends": []
+      },
+      "appimage": {
+        "bundleMediaFramework": false
+      },
+      "rpm": {
+        "depends": []
+      }
+    },
+    "windows": {
+      "wix": {},
+      "nsis": {
+        "displayLanguageSelector": false,
+        "installMode": "currentUser"
+      },
+      "webviewInstallMode": {
+        "type": "downloadBootstrapper"
+      }
+    },
+    "macOS": {
+      "entitlements": null,
+      "exceptionDomain": "",
+      "signingIdentity": null,
+      "minimumSystemVersion": "10.15"
+    },
+    "updater": {
+      "active": false
+    }
+  },
+
+  "plugins": {
+    "shell": {
+      "open": true,
+      "sidecar": true,
+      "scope": [
+        {
+          "name": "binaries/madgod-sidecar",
+          "sidecar": true
+        }
+      ]
+    },
+    "dialog": {
+      "open": true,
+      "save": true
+    },
+    "fs": {
+      "scope": {
+        "allow": ["$HOME/**", "$APPDATA/**", "$APPCONFIG/**"],
+        "deny":  ["$HOME/.ssh/**", "$HOME/.gnupg/**"]
+      }
+    }
+  }
+}

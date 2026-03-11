@@ -1,0 +1,20 @@
+{
+  "name": "madgod",
+  "version": "0.1.0",
+  "description": "MADGOD — workspace operating environment",
+  "private": true,
+  "scripts": {
+    "tauri": "tauri",
+    "dev": "tauri dev",
+    "build": "tauri build",
+    "build:debug": "tauri build --debug",
+    "sidecar:bundle": "node scripts/bundle-sidecar.js",
+    "sidecar:dev": "python3 main.py"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "^2.0.0"
+  },
+  "dependencies": {
+    "@tauri-apps/api": "^2.0.0"
+  }
+}
