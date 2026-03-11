@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MADGOD</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=VT323&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="src/styles/main.css">
+</head>
+<body>
+<div class="crt-overlay"></div>
+
+<!-- TITLEBAR -->
+<div id="titlebar">
+  <span class="title-logo">MADGOD<span class="blink">_</span></span>
+  <span class="title-version">v0.1.0</span>
+  <div class="title-center">
+    <span class="status-pill" id="vault-status">
+      <span class="dot" id="vault-dot"></span>
+      VAULT: <span id="vault-path">~/obsidian</span>
+    </span>
+  </div>
+  <div class="title-right">
+    <span class="status-pill" id="ai-status">
+      <span class="dot active" id="ai-dot"></span>
+      <span id="ai-provider">CLAUDE</span>
+    </span>
+    <span class="status-pill" id="esp-status" style="display:none">
+      <span class="dot" id="esp-dot"></span>
+      <span id="esp-port">NO DEVICE</span>
+    </span>
+    <button class="icon-btn" id="settings-btn" title="settings">[ CFG ]</button>
+  </div>
+</div>
+
+<!-- MAIN LAYOUT -->
+<div id="app">
+
+  <!-- LEFT RAIL -->
+  <div id="left-rail" class="rail">
+    <div class="rail-header">
+      <span>MODULES</span>
+      <button class="icon-btn" id="rail-toggle">◁</button>
+    </div>
+
+    <nav id="module-nav">
+      <button class="nav-item active" data-module="graph">
+        <span class="nav-icon">◈</span>
+        <span class="nav-label">MAGI_GRAPH</span>
+      </button>
+      <button class="nav-item" data-module="chat">
+        <span class="nav-icon">▸</span>
+        <span class="nav-label">SOMA_CHAT</span>
+      </button>
+      <button class="nav-item" data-module="note">
+        <span class="nav-icon">◻</span>
+        <span class="nav-label">LEXICON</span>
+      </button>
+      <button class="nav-item" data-module="code">
+        <span class="nav-icon">⌥</span>
+        <span class="nav-label">CORTEX_CODE</span>
+      </button>
+      <button class="nav-item" data-module="esp32">
+        <span class="nav-icon">⚡</span>
+        <span class="nav-label">ESP32_CTRL</span>
+      </button>
+      <button class="nav-item" data-module="context">
+        <span class="nav-icon">⊕</span>
+        <span class="nav-label">CTX_INJECT</span>
+      </button>
+      <button class="nav-item" data-module="visual">
+        <span class="nav-icon">◉</span>
+        <span class="nav-label">VISUAL_LAB</span>
+      </button>
+    </nav>
+
+    <div id="rail-footer">
+      <div class="sys-stat">
+        <span class="stat-label">CONTEXT</span>
+        <div class="stat-bar"><div class="stat-fill" id="ctx-bar" style="width:12%"></div></div>
+        <span class="stat-val" id="ctx-tokens">1.2k / 100k</span>
+      </div>
+      <div class="sys-stat">
+        <span class="stat-label">SESSION</span>
+        <span class="stat-val" id="session-time">00:00:00</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- VIEWPORT -->
+  <div id="viewport">
+    <div id="viewport-header">
+      <span id="module-breadcrumb">MADGOD <span class="dim">/</span> <span id="active-module-name">MAGI_GRAPH</span></span>
+      <div id="viewport-actions"></div>
+    </div>
+    <div id="module-container">
+      <!-- modules mount here -->
+    </div>
+  </div>
+
+</div>
+
+<!-- TERMINAL -->
+<div id="terminal-wrapper">
+  <div id="terminal-resizer"></div>
+  <div id="terminal-header">
+    <span class="term-label">TERMINAL <span class="dim">// persistent command interface</span></span>
+    <div class="term-controls">
+      <button class="icon-btn" id="term-clear">[ CLR ]</button>
+      <button class="icon-btn" id="term-toggle">[ ▼ ]</button>
+    </div>
+  </div>
+  <div id="terminal-body">
+    <div id="terminal-output"></div>
+    <div id="terminal-input-row">
+      <span class="prompt">madgod<span class="dim">@</span>workspace<span class="prompt-arrow">&gt;</span></span>
+      <input type="text" id="terminal-input" autocomplete="off" autocorrect="off" spellcheck="false" placeholder="type a command or 'help'">
+    </div>
+  </div>
+</div>
+
+<!-- STATUSBAR -->
+<div id="statusbar">
+  <span id="sb-left">
+    <span class="sb-item" id="sb-module">MAGI_GRAPH</span>
+    <span class="sb-sep">│</span>
+    <span class="sb-item" id="sb-notes-count">-- notes</span>
+    <span class="sb-sep">│</span>
+    <span class="sb-item" id="sb-edges-count">-- edges</span>
+  </span>
+  <span id="sb-right">
+    <span class="sb-item" id="sb-uptime">UPTIME 00:00:00</span>
+    <span class="sb-sep">│</span>
+    <span class="sb-item" id="sb-time">--:--:--</span>
+  </span>
+</div>
+
+<!-- SCRIPTS -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="src/core/state.js"></script>
+<script src="src/core/terminal.js"></script>
+<script src="src/core/router.js"></script>
+<script src="src/core/commands.js"></script>
+<script src="src/modules/graph.js"></script>
+<script src="src/modules/chat.js"></script>
+<script src="src/modules/note.js"></script>
+<script src="src/modules/code.js"></script>
+<script src="src/modules/esp32.js"></script>
+<script src="src/modules/context.js"></script>
+<script src="src/modules/visual.js"></script>
+<script src="src/core/init.js"></script>
+</body>
+</html>
