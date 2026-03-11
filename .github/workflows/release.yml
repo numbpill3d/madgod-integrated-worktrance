@@ -1,0 +1,160 @@
+name: Release
+
+on:
+  push:
+    branches: [main]
+    tags:
+      - 'v*'
+
+# cancel in-progress runs on the same branch (saves CI minutes)
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # ── quick check on every push to main ───────────────────
+  check:
+    name: Check (Rust + JS)
+    runs-on: ubuntu-22.04
+    if: github.ref_type == 'branch'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Setup Rust stable
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Rust
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+
+      - name: Install Linux Tauri deps
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq \
+            libwebkit2gtk-4.1-dev build-essential \
+            libssl-dev libayatana-appindicator3-dev librsvg2-dev
+
+      - name: npm install
+        run: npm install
+
+      - name: Rust check
+        working-directory: src-tauri
+        run: cargo check --release
+
+  # ── full release build on version tag ───────────────────
+  release:
+    name: Build ${{ matrix.name }}
+    if: github.ref_type == 'tag'
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Linux (x86_64)
+            runs-on: ubuntu-22.04
+            rust-target: x86_64-unknown-linux-gnu
+            python: '3.12'
+
+          - name: macOS (Apple Silicon)
+            runs-on: macos-latest
+            rust-target: aarch64-apple-darwin
+            python: '3.12'
+
+          - name: macOS (Intel)
+            runs-on: macos-13
+            rust-target: x86_64-apple-darwin
+            python: '3.12'
+
+          - name: Windows (x86_64)
+            runs-on: windows-latest
+            rust-target: x86_64-pc-windows-msvc
+            python: '3.12'
+
+    runs-on: ${{ matrix.runs-on }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # ── toolchains ──────────────────────────────────────
+      - name: Setup Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.rust-target }}
+
+      - name: Cache Rust
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+          key: ${{ matrix.rust-target }}
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+          cache: pip
+
+      # ── platform deps ───────────────────────────────────
+      - name: Linux system deps
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq \
+            libwebkit2gtk-4.1-dev build-essential curl wget file \
+            libssl-dev libayatana-appindicator3-dev librsvg2-dev
+
+      - name: macOS Xcode CLI
+        if: runner.os == 'macOS'
+        run: xcode-select --install 2>/dev/null || true
+
+      # ── Python sidecar ──────────────────────────────────
+      - name: Install Python deps
+        run: pip install -r requirements.txt pyinstaller
+
+      - name: npm install
+        run: npm install
+
+      - name: Bundle sidecar
+        run: node scripts/bundle-sidecar.js
+
+      # ── Tauri build + GitHub Release ───────────────────
+      - name: Build and release
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tagName: ${{ github.ref_name }}
+          releaseName: MADGOD ${{ github.ref_name }}
+          releaseBody: |
+            ## Install
+
+            ### Arch Linux / Linux
+            Download the `.AppImage`, make it executable, run it:
+            ```bash
+            chmod +x MADGOD_*.AppImage
+            ./MADGOD_*.AppImage
+            ```
+            Or use `install.sh` to build from source and register with your app launcher.
+
+            ### macOS
+            Download the `.dmg`, open it, drag MADGOD.app to Applications.
+
+            ### Windows
+            Download and run the `.msi` or `-setup.exe` installer.
+
+            ---
+            See [BUILDING.md](https://github.com/numbpill3d/madgod-integrated-worktrance/blob/main/BUILDING.md) for build-from-source instructions.
+          releaseDraft: false
+          prerelease: ${{ contains(github.ref_name, '-') }}
+          tauriScript: npx tauri

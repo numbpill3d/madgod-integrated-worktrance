@@ -1,65 +1,117 @@
-# MADGOD — build guide
+# MADGOD — build & install guide
 
-## one-command install
+## TL;DR — one command
 
-**Linux / macOS**
 ```bash
 bash install.sh
 ```
 
-**Windows** (PowerShell, run as Administrator first time for deps)
+That's it. Handles everything: system packages, Rust, Node, Python sidecar bundle, Tauri build, `.desktop` launcher registration.
+
+After it finishes MADGOD appears in your application launcher (Rofi, wofi, KDE, GNOME, etc.).
+
+---
+
+## Arch Linux (primary target)
+
+```bash
+# clone
+git clone https://github.com/numbpill3d/madgod-integrated-worktrance
+cd madgod-integrated-worktrance
+
+# install everything and register as native app
+bash install.sh
+```
+
+The installer installs the required Tauri 2 build dependencies via `pacman`:
+
+```
+webkit2gtk-4.1  base-devel  openssl  curl  wget  file
+gtk3  libappindicator-gtk3  librsvg  nodejs  npm  python  python-pip
+```
+
+After the build it:
+- copies the AppImage to `~/Applications/MADGOD.AppImage`
+- writes `~/.local/share/applications/madgod.desktop`
+- installs the icon to `~/.local/share/icons/hicolor/128x128/apps/madgod.png`
+- runs `update-desktop-database` so the launcher picks it up immediately
+
+**Quick dev launch** (no Tauri build, opens in Chromium app-mode):
+```bash
+bash launch.sh
+```
+
+---
+
+## Other Linux (Debian / Ubuntu / Fedora)
+
+Same command — `install.sh` detects your distro and uses the right package manager:
+
+| distro | package manager | key dep |
+|---|---|---|
+| Arch / Manjaro | `pacman` | `webkit2gtk-4.1` |
+| Ubuntu 22+ / Debian 12+ | `apt` | `libwebkit2gtk-4.1-dev` |
+| Fedora 38+ | `dnf` | `webkit2gtk4.1-devel` |
+
+---
+
+## macOS
+
+```bash
+bash install.sh
+```
+
+Requires Xcode command line tools (`xcode-select --install`). The installer puts
+`MADGOD.app` in `/Applications`.
+
+---
+
+## Windows
+
 ```powershell
 Set-ExecutionPolicy Bypass -Scope Process
 .\install.ps1
 ```
 
-That's it. Both scripts handle everything: Rust, Node, Python deps, PyInstaller sidecar bundle, Tauri build.
-
 ---
 
-## what gets built
+## What gets built
 
 | platform | output | location |
 |---|---|---|
 | Linux | `MADGOD_0.1.0_amd64.AppImage` | `src-tauri/target/release/bundle/appimage/` |
 | Linux | `madgod_0.1.0_amd64.deb` | `src-tauri/target/release/bundle/deb/` |
-| macOS | `MADGOD_0.1.0_x64.dmg` | `src-tauri/target/release/bundle/dmg/` |
+| macOS | `MADGOD_0.1.0_aarch64.dmg` | `src-tauri/target/release/bundle/dmg/` |
 | macOS | `MADGOD.app` | `src-tauri/target/release/bundle/macos/` |
 | Windows | `MADGOD_0.1.0_x64_en-US.msi` | `src-tauri/target/release/bundle/msi/` |
 | Windows | `MADGOD_0.1.0_x64-setup.exe` | `src-tauri/target/release/bundle/nsis/` |
 
 ---
 
-## how it works
+## Architecture
 
 ```
-MADGOD (Tauri shell)
+MADGOD (Tauri 2 shell)
 ├── WebKitGTK / WebView2 / WKWebView  ← renders frontend
 │   ├── index.html
-│   ├── tauri-bridge.js               ← IPC between JS and Rust
-│   ├── state.js … visual.js          ← existing frontend unchanged
+│   ├── tauri-bridge.js               ← IPC: JS ↔ Rust
+│   ├── graph.js / visual.js / ...    ← frontend modules
 │   └── main.css
-└── madgod-sidecar (PyInstaller binary)
+└── madgod-sidecar  (PyInstaller binary — zero Python install required)
     ├── FastAPI on localhost:8765
-    ├── vault parsing + embeddings
+    ├── vault parsing + semantic embeddings
     ├── file I/O
-    └── PlatformIO subprocess
+    └── PlatformIO subprocess (ESP32)
 ```
 
-The sidecar is a self-contained PyInstaller binary — Python, FastAPI,
-sentence-transformers, torch, all bundled in. Users need zero Python installed.
-
-The frontend is unchanged from the browser version. `tauri-bridge.js` detects
-the Tauri environment and:
-- asks Rust to spawn the sidecar
-- injects window control buttons (minimize/maximize/close) since decorations=false
-- patches file dialogs to use native OS pickers instead of browser input[type=file]
+`tauri-bridge.js` detects the Tauri environment and:
+- asks Rust to spawn the sidecar automatically on launch
+- injects window controls (minimize / maximize / close) for the custom titlebar
+- patches file dialogs to native OS pickers
 
 ---
 
-## manual build steps
-
-If you want to run each step individually:
+## Manual build steps
 
 ```bash
 # 1. install JS deps
@@ -74,106 +126,118 @@ npm run sidecar:bundle
 # 4. build Tauri app
 npm run build
 
-# 5. find your bundle
+# 5. locate bundles
 ls src-tauri/target/release/bundle/
 ```
 
 ---
 
-## dev mode (no bundle, hot-ish reload)
+## Dev mode (live reload, no bundle)
 
 ```bash
-# terminal 1 — run sidecar directly
+# terminal 1 — Python sidecar
 npm run sidecar:dev
 
-# terminal 2 — Tauri dev window (loads frontend live)
+# terminal 2 — Tauri dev window (loads local files, Ctrl+R to reload)
 npm run dev
 ```
 
-In dev mode Tauri opens a window pointing at the local files.
-Changes to JS/CSS are visible on reload (Ctrl+R).
-Rust changes require `npm run dev` restart.
+Or the simpler browser-only dev loop:
+
+```bash
+bash launch.sh
+```
 
 ---
 
-## prerequisites by platform
+## Syncing to GitHub
 
-### Linux (Ubuntu/Debian)
 ```bash
-sudo apt update
-sudo apt install -y \
-  libwebkit2gtk-4.1-dev build-essential curl wget file \
-  libssl-dev libayatana-appindicator3-dev librsvg2-dev
+bash sync.sh                      # auto commit message + push
+bash sync.sh "feat: my change"    # custom commit message
+bash sync.sh --tag v0.2.0         # tag → triggers GitHub Actions release build
 ```
-install.sh handles this automatically.
 
-### Linux (Arch)
+---
+
+## GitHub Actions — automated releases
+
+On every `git push origin main`: runs `cargo check` + `npm install` (fast CI).
+
+On every version tag (`v*`): builds release binaries for Linux / macOS arm / macOS x86 / Windows and attaches them to a GitHub Release automatically.
+
+```bash
+# example: publish v0.2.0
+bash sync.sh --tag v0.2.0
+```
+
+Watch the build at: https://github.com/numbpill3d/madgod-integrated-worktrance/actions
+
+---
+
+## Prerequisites summary
+
+### Arch Linux
+All installed automatically by `install.sh`. Manual equivalent:
 ```bash
 sudo pacman -S --needed \
   webkit2gtk-4.1 base-devel curl wget file openssl \
   appmenu-gtk-module gtk3 libappindicator-gtk3 librsvg \
-  libvips
+  nodejs npm python python-pip
+```
+
+### Ubuntu 22.04+
+```bash
+sudo apt-get install -y \
+  libwebkit2gtk-4.1-dev build-essential curl wget file \
+  libssl-dev libayatana-appindicator3-dev librsvg2-dev
+```
+
+### Fedora 38+
+```bash
+sudo dnf install -y \
+  webkit2gtk4.1-devel openssl-devel curl wget file \
+  libappindicator-gtk3-devel librsvg2-devel nodejs npm python3 python3-pip
 ```
 
 ### macOS
-Xcode command line tools required:
 ```bash
 xcode-select --install
 ```
 
 ### Windows
-- Visual Studio Build Tools with "Desktop development with C++"
-- WebView2 (ships with Windows 11, install.ps1 gets it on Win10)
-- install.ps1 handles Rust + Node via winget
+- Visual Studio Build Tools → "Desktop development with C++"
+- WebView2 (ships with Win11; `install.ps1` handles Win10)
+- `install.ps1` installs Rust + Node via winget automatically
 
 ---
 
-## cross-compilation
+## Icons
 
-Tauri does not support cross-compilation out of the box.
-Build each platform on its own machine or use GitHub Actions:
-
-```yaml
-# .github/workflows/release.yml
-jobs:
-  build:
-    strategy:
-      matrix:
-        platform: [ubuntu-22.04, macos-latest, windows-latest]
-    runs-on: ${{ matrix.platform }}
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with: { node-version: 20 }
-      - uses: dtolnay/rust-toolchain@stable
-      - uses: actions/setup-python@v5
-        with: { python-version: '3.12' }
-      - run: pip install -r requirements.txt pyinstaller
-      - run: npm install
-      - run: node scripts/bundle-sidecar.js
-      - uses: tauri-apps/tauri-action@v0
-        with:
-          tagName: v${{ github.ref_name }}
-          releaseName: MADGOD v${{ github.ref_name }}
-```
-
----
-
-## adding icons
-
-Replace the placeholder icons before shipping:
+Replace placeholder icons before shipping:
 ```
 src-tauri/icons/
 ├── 32x32.png
 ├── 128x128.png
 ├── 128x128@2x.png
-├── icon.icns        ← macOS
-├── icon.ico         ← Windows
-└── icon.png         ← tray
+├── icon.icns     ← macOS
+├── icon.ico      ← Windows
+└── icon.png      ← tray + Linux
 ```
 
 Generate all sizes from a single 1024×1024 PNG:
 ```bash
-npm install -g @tauri-apps/cli
 npx tauri icon your-icon-1024.png
+```
+
+---
+
+## Cross-compilation
+
+Tauri does not support cross-compilation. Use GitHub Actions (included in `.github/workflows/release.yml`) to build each platform in CI:
+
+```
+.github/workflows/release.yml
+├── check job     — cargo check + npm install on every push to main
+└── release job   — full build for Linux / macOS arm+x86 / Windows on version tags
 ```

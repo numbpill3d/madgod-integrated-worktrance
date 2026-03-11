@@ -1,0 +1,40 @@
+# ── Node ──────────────────────────────────────────────────
+node_modules/
+package-lock.json
+
+# ── Rust / Tauri build artifacts ─────────────────────────
+src-tauri/target/
+src-tauri/binaries/
+
+# ── PyInstaller sidecar artifacts ────────────────────────
+.pyinstaller-dist/
+.pyinstaller-work/
+*.spec
+
+# ── Python ────────────────────────────────────────────────
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+
+# ── OS / editor ───────────────────────────────────────────
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+.idea/
+.vscode/settings.json
+
+# ── env / secrets ─────────────────────────────────────────
+.env
+.env.*
+!.env.example
+
+# ── release bundles (built outputs — not for git) ────────
+*.AppImage
+*.deb
+*.rpm
+*.dmg
+*.msi
+*.exe

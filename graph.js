@@ -50,17 +50,27 @@ MADGOD.registerModule('graph', (() => {
     renderer = new THREE.WebGLRenderer({ antialias:true, alpha:true });
     renderer.setSize(w,h);
     renderer.setPixelRatio(Math.min(window.devicePixelRatio,2));
-    renderer.setClearColor(0x000000,0);
+    renderer.setClearColor(0x040404, 1);
     el.appendChild(renderer.domElement);
 
     raycaster = new THREE.Raycaster();
     raycaster.params.Points.threshold = 1.5;
     mouse = new THREE.Vector2();
 
-    scene.add(new THREE.AmbientLight(0xffffff, 0.15));
-    const dir = new THREE.DirectionalLight(0xffffff, 0.4);
-    dir.position.set(50,50,50);
+    // deep void fog — monochrome
+    scene.fog = new THREE.FogExp2(0x040404, 0.007);
+
+    // monochrome lighting + dim blood-red rim
+    scene.add(new THREE.AmbientLight(0xffffff, 0.12));
+    const dir = new THREE.DirectionalLight(0xffffff, 0.45);
+    dir.position.set(60, 60, 60);
     scene.add(dir);
+    const rim = new THREE.PointLight(0x8b1a1a, 1.0, 280);
+    rim.position.set(-80, -40, -60);
+    scene.add(rim);
+
+    // star-field background
+    _addStarField();
 
     renderer.domElement.addEventListener('mousemove', onMouseMove);
     renderer.domElement.addEventListener('click', onNodeClick);
@@ -98,15 +108,15 @@ MADGOD.registerModule('graph', (() => {
     nodes.forEach(n => {
       const isHub = n.type === 'hub';
       const geo = isHub
-        ? new THREE.OctahedronGeometry(2.2, 0)
+        ? new THREE.OctahedronGeometry(2.4, 0)
         : new THREE.IcosahedronGeometry(1.1, 0);
       const mat = new THREE.MeshStandardMaterial({
-        color: 0xffffff,
-        wireframe: !isHub,
-        emissive: 0xffffff,
-        emissiveIntensity: isHub ? 0.5 : 0.12,
-        transparent: true,
-        opacity: isHub ? 0.9 : 0.6,
+        color:            isHub ? 0xffffff : 0x1a1a1a,
+        emissive:         isHub ? 0xffffff : 0x444444,
+        emissiveIntensity:isHub ? 0.70     : 0.15,
+        wireframe:        !isHub,
+        transparent:      true,
+        opacity:          isHub ? 0.92 : 0.55,
       });
       const mesh = new THREE.Mesh(geo, mat);
       mesh.position.set(n.x, n.y, n.z);
@@ -115,10 +125,10 @@ MADGOD.registerModule('graph', (() => {
       nodeMeshes.push(mesh);
     });
 
-    // wikilink edges — bright
-    (data.wikiEdges||[]).forEach(e => addEdge(e, 0xffffff, 0.4));
-    // semantic edges — dim
-    (data.semEdges||[]).forEach(e  => addEdge(e, 0x888888, 0.18));
+    // wikilink edges — white
+    (data.wikiEdges||[]).forEach(e => addEdge(e, 0xffffff, 0.38));
+    // semantic edges — blood red
+    (data.semEdges||[]).forEach(e  => addEdge(e, 0x8b1a1a, 0.55));
 
     physicsFrames = 0;
     physicsActive = true;
@@ -225,16 +235,23 @@ MADGOD.registerModule('graph', (() => {
   }
 
   function highlightNode(m) {
-    m.material.emissiveIntensity=1.2; m.material.opacity=1; m.material.wireframe=false;
-    renderer.domElement.style.cursor='pointer';
-    // re-enable physics briefly so the graph reacts
-    physicsActive=true;
+    m.material.color.set(0xffffff);
+    m.material.emissive.set(0xffffff);
+    m.material.emissiveIntensity = 1.4;
+    m.material.opacity = 1;
+    m.material.wireframe = false;
+    renderer.domElement.style.cursor = 'pointer';
+    physicsActive = true;
   }
   function resetNode(m) {
-    const ud=m.userData;
-    m.material.emissiveIntensity=ud.baseEmissive; m.material.opacity=ud.baseOpacity;
-    m.material.wireframe = ud.node.type!=='hub';
-    renderer.domElement.style.cursor='default';
+    const ud = m.userData;
+    const isHub = ud.node.type === 'hub';
+    m.material.color.set(isHub ? 0xffffff : 0x1a1a1a);
+    m.material.emissive.set(isHub ? 0xffffff : 0x444444);
+    m.material.emissiveIntensity = ud.baseEmissive;
+    m.material.opacity = ud.baseOpacity;
+    m.material.wireframe = !isHub;
+    renderer.domElement.style.cursor = 'default';
   }
 
   function showHover(n) {
@@ -266,12 +283,17 @@ MADGOD.registerModule('graph', (() => {
     camera.position.z = orbit.zoom * cY * cX;
     camera.lookAt(0,0,0);
 
-    // node pulse + spin
+    // node pulse + spin — hub nodes glow-pulse cyan, regular nodes dim violet
     nodeMeshes.forEach((mesh,i) => {
       if (mesh===hoveredNode) return;
+      const isHub = mesh.userData.node.type === 'hub';
       const t = frameCount*0.016 + i*0.38;
-      mesh.rotation.y += 0.004; mesh.rotation.x += 0.002;
-      mesh.material.emissiveIntensity = mesh.userData.baseEmissive + Math.sin(t)*0.06;
+      mesh.rotation.y += isHub ? 0.006 : 0.003;
+      mesh.rotation.x += isHub ? 0.003 : 0.0015;
+      const pulse = isHub
+        ? mesh.userData.baseEmissive + Math.sin(t)*0.20   // hub pulses white — organic heartbeat
+        : mesh.userData.baseEmissive + Math.sin(t)*0.05;  // nodes breathe subtly
+      mesh.material.emissiveIntensity = pulse;
     });
 
     renderer.render(scene,camera);
@@ -342,6 +364,39 @@ MADGOD.registerModule('graph', (() => {
     MADGOD.state.physicsRunning = !MADGOD.state.physicsRunning;
     physicsActive = MADGOD.state.physicsRunning;
     Terminal.info(`physics: ${MADGOD.state.physicsRunning ? 'ON' : 'OFF'}`);
+  }
+
+  // ── STAR FIELD ────────────────────────────────────────────
+  function _addStarField() {
+    const N = 2200;
+    const pos = new Float32Array(N * 3);
+    const col = new Float32Array(N * 3);
+    for (let i = 0; i < N; i++) {
+      const theta = Math.random() * Math.PI * 2;
+      const phi   = Math.acos(2 * Math.random() - 1);
+      const r     = 220 + Math.random() * 280;
+      pos[i*3]   = r * Math.sin(phi) * Math.cos(theta);
+      pos[i*3+1] = r * Math.sin(phi) * Math.sin(theta);
+      pos[i*3+2] = r * Math.cos(phi);
+      // cool blue-white tint with occasional cyan spark
+      const isCyan = Math.random() < 0.05;
+      // white stars with very occasional dim-red ones (blood)
+      const isRed = Math.random() < 0.04;
+      const bright = 0.35 + Math.random() * 0.5;
+      col[i*3]   = isRed ? 0.55 : bright;
+      col[i*3+1] = isRed ? 0.08 : bright;
+      col[i*3+2] = isRed ? 0.08 : bright;
+    }
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+    geo.setAttribute('color',    new THREE.BufferAttribute(col, 3));
+    scene.add(new THREE.Points(geo, new THREE.PointsMaterial({
+      vertexColors: true,
+      size: 0.35,
+      transparent: true,
+      opacity: 0.55,
+      sizeAttenuation: true,
+    })));
   }
 
   // ── MODULE INTERFACE ──────────────────────────────────────
