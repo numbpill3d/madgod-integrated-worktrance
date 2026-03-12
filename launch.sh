@@ -77,8 +77,26 @@ command -v python3 &>/dev/null && HAS_PYTHON=1
 if [[ "$HAS_PYTHON" -eq 1 && -f requirements.txt ]]; then
   if ! python3 -c "import fastapi" 2>/dev/null; then
     echo "[*] first run: installing sidecar dependencies..."
-    pip3 install -r requirements.txt --break-system-packages -q 2>/dev/null \
-      || pip3 install -r requirements.txt -q
+
+    # detect GPU — install CPU-only torch when there is no NVIDIA GPU
+    # (avoids a ~2.5 GB CUDA download on Intel/AMD machines)
+    _TORCH_INDEX="https://download.pytorch.org/whl/cpu"
+    if command -v lspci &>/dev/null && lspci 2>/dev/null | grep -qi nvidia; then
+      _TORCH_INDEX="https://download.pytorch.org/whl/cu121"
+      echo "[*] NVIDIA GPU detected — using CUDA 12.1 build of PyTorch"
+    else
+      echo "[*] no NVIDIA GPU detected — using CPU-only PyTorch (~280 MB)"
+    fi
+
+    if ! python3 -c "import torch" 2>/dev/null; then
+      echo "[*] downloading PyTorch..."
+      pip3 install torch --index-url "$_TORCH_INDEX" \
+        --break-system-packages 2>/dev/null \
+        || pip3 install torch --index-url "$_TORCH_INDEX"
+    fi
+
+    pip3 install -r requirements.txt --break-system-packages 2>/dev/null \
+      || pip3 install -r requirements.txt
   fi
 fi
 
